@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://tommyzaffa.github.io/fedemassaggi/sitemap.xml

@@ -1,0 +1,7 @@
+.DS_Store
+# foto originali ad alta risoluzione: il sito usa solo le versioni webp in img/
+img/src/
+.claude/
+# materiale interno (brief cliente e appunti di lavoro): non pubblicare
+docs/
+NOTE_PROGETTO.md
