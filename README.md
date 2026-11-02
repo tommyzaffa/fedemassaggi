@@ -18,20 +18,20 @@ Poi apri http://localhost:8080
 
 | File | Contenuto |
 |------|-----------|
-| `index.html` | Pagina unica: hero, chi sono, trattamenti, motto, come funziona, casse malati, promozioni, FAQ, contatti |
+| `index.html` | Pagina unica: apertura col cerchio che respira e il motto, chi sono, trattamenti con filtro per esigenza, sessanta minuti, lo studio, buoni regalo, buono a sapersi, contatti |
 | `css/style.css` | Stili e layout responsive |
-| `js/main.js` | Animazioni (GSAP + ScrollTrigger), smooth scroll (Lenis), menu, FAQ |
+| `js/main.js` | Cerchio che respira e si apre, immagine che segue il cursore, filtro trattamenti, anello dei 60 minuti (GSAP + ScrollTrigger), smooth scroll (Lenis), menu |
 | `js/vendor/` | GSAP 3.12.5, ScrollTrigger, Lenis 1.1.13 (self-hosted) |
-| `fonts/` | Cormorant Garamond e Manrope (self-hosted, nessuna chiamata a Google) |
+| `fonts/` | Italiana e Instrument Sans (self-hosted, nessuna chiamata a Google) |
 | `img/` | Foto in webp (640/1024/1600/2200 px), icone, immagine Open Graph |
 | `scripts/optimize.sh` | Rigenera i webp da `img/src/` (originali esclusi da git) |
 
 ## Aggiornare i contenuti
 
-- **Promozioni**: sezione `#promozioni` in `index.html`, basta cambiare i testi delle card.
+- **Promozioni e novità**: lista `.gift__news` nella sezione `#regala` di `index.html`.
 - **Foto**: metti l'originale in `img/src/` con lo stesso nome e lancia `./scripts/optimize.sh` (richiede `cwebp` e Pillow).
 - **Dominio definitivo**: sostituire `https://tommyzaffa.github.io/fedemassaggi/` in `index.html` (canonical, Open Graph, JSON-LD), `robots.txt` e `sitemap.xml`.
 
 ## Foto
 
-Foto stock da [Unsplash](https://unsplash.com) (licenza Unsplash, uso commerciale consentito). Autori: Jakub Klucký, ika ika, Katherine Hanlon, Massage a Domicile, Performance Medicine, Anna Storsul, Mat Kilkeary, Simon Humler, Taylor Heery, Anna Keibalo, Rosalie Gdy, Christin Hume, 360floralflaves, Skyler Smith, Raymond Petrik, Fabrice Villard.
+Foto stock da [Unsplash](https://unsplash.com) (licenza Unsplash, uso commerciale consentito). Autori: Jakub Klucký, ika ika, Massage a Domicile, Performance Medicine, Anna Storsul, Mat Kilkeary, Simon Humler, Taylor Heery, Anna Keibalo, Rosalie Gdy, Christin Hume, Skyler Smith, Raymond Petrik, Fabrice Villard.

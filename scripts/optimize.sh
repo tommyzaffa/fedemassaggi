@@ -19,7 +19,7 @@ for f in "$SRC"/*.jpg; do
   name=$(basename "$f" .jpg)
   in="$f"; [ -f "$TMP/$name.jpg" ] && in="$TMP/$name.jpg"
   widths="640 1024 1600"
-  case "$name" in motto-viso|lugano-sera) widths="640 1024 1600 2200";; esac
+  case "$name" in hero-mani-schiena|lugano-sera) widths="640 1024 1600 2200";; esac
   for w in $widths; do
     cwebp -quiet -q 74 -m 6 -resize "$w" 0 -metadata none "$in" -o "$OUT/$name-$w.webp"
   done

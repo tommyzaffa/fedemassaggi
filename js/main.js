@@ -1,5 +1,5 @@
 /* =========================================================================
-   FEDEMASSAGGI — interazioni e animazioni
+   FEDEMASSAGGI — il respiro e il tempo
    GSAP + ScrollTrigger + Lenis (self-hosted in js/vendor)
    ========================================================================= */
 (() => {
@@ -10,278 +10,318 @@
   window.__fmReady = true;
   if (reduced || !hasGsap) root.classList.add('no-anim');
   const animate = !root.classList.contains('no-anim');
-  const desktop = window.matchMedia('(min-width: 901px)');
-  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
+  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const isDesktop = () => window.innerWidth > 900;
 
-  if (hasGsap) gsap.registerPlugin(ScrollTrigger);
+  const $ = (s, c = document) => c.querySelector(s);
+  const $$ = (s, c = document) => [...c.querySelectorAll(s)];
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const easeInOutSine = (t) => -(Math.cos(Math.PI * t) - 1) / 2;
 
-  const year = document.getElementById('year');
+  const year = $('#year');
   if (year) year.textContent = new Date().getFullYear();
+
+  /* ---------- Testi giganti a tutta larghezza ---------- */
+  const fits = [
+    { el: $('.hero__word .fit'), ratio: 0.975 },
+    { el: $('.contact__big .fit'), ratio: 0.9 },
+  ];
+  function fitAll() {
+    fits.forEach(({ el, ratio }) => {
+      if (!el) return;
+      el.style.fontSize = '100px';
+      const w = el.getBoundingClientRect().width;
+      if (w) el.style.fontSize = (100 * el.parentElement.clientWidth * ratio) / w + 'px';
+    });
+  }
+  fitAll();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { fitAll(); if (animate) ScrollTrigger.refresh(); });
 
   /* ---------- Smooth scroll ---------- */
   let lenis = null;
-  if (animate && window.Lenis) {
-    lenis = new Lenis({ duration: 1.15, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) });
-    lenis.on('scroll', ScrollTrigger.update);
-    gsap.ticker.add((time) => lenis.raf(time * 1000));
-    gsap.ticker.lagSmoothing(0);
+  if (animate) {
+    gsap.registerPlugin(ScrollTrigger);
+    ScrollTrigger.config({ ignoreMobileResize: true });
+    ScrollTrigger.addEventListener('refreshInit', fitAll);
+    if (window.Lenis) {
+      lenis = new Lenis({ duration: 1.25, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) });
+      lenis.on('scroll', ScrollTrigger.update);
+      gsap.ticker.add((time) => lenis.raf(time * 1000));
+      gsap.ticker.lagSmoothing(0);
+    }
+  } else {
+    let rt;
+    window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(fitAll, 150); });
   }
 
-  /* ---------- Menu mobile ---------- */
-  const body = document.body;
-  const burger = document.getElementById('burger');
-  const menu = document.getElementById('menu');
-
+  /* ---------- Menu ---------- */
+  const menuBtn = $('#menuBtn');
+  const menu = $('#menu');
   function setMenu(open) {
-    body.classList.toggle('menu-open', open);
-    burger.setAttribute('aria-expanded', String(open));
-    burger.setAttribute('aria-label', open ? 'Chiudi il menu' : 'Apri il menu');
+    document.body.classList.toggle('menu-open', open);
+    if (open) $('#hd').classList.remove('is-hidden');
+    menuBtn.setAttribute('aria-expanded', String(open));
     menu.setAttribute('aria-hidden', String(!open));
     if (lenis) open ? lenis.stop() : lenis.start();
   }
-  burger.addEventListener('click', () => setMenu(!body.classList.contains('menu-open')));
+  menuBtn.addEventListener('click', () => setMenu(!document.body.classList.contains('menu-open')));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setMenu(false); });
 
   /* ---------- Link interni ---------- */
-  document.querySelectorAll('a[href^="#"]').forEach((a) => {
+  $$('a[href^="#"]').forEach((a) => {
     a.addEventListener('click', (e) => {
       const id = a.getAttribute('href');
-      if (id === '#') return;
-      const target = id === '#top' ? document.body : document.querySelector(id);
-      if (!target) return;
+      const target = id === '#top' ? null : $(id);
+      if (id !== '#top' && !target) return;
       e.preventDefault();
       setMenu(false);
-      let offset = id === '#top' ? 0 : -60;
-      if (target.classList.contains('treat__item')) offset = -window.innerHeight * 0.3;
-      if (lenis) {
-        lenis.scrollTo(target, { offset, duration: 1.5 });
-      } else {
-        const top = id === '#top' ? 0 : target.getBoundingClientRect().top + window.scrollY + offset;
-        window.scrollTo({ top, behavior: reduced ? 'auto' : 'smooth' });
-      }
-      history.replaceState(null, '', id === '#top' ? location.pathname : id);
+      const offset = target && target.classList.contains('tr') ? -window.innerHeight * 0.35 : 0;
+      if (lenis) lenis.scrollTo(target || 0, { offset, duration: 1.6 });
+      else window.scrollTo({ top: target ? target.getBoundingClientRect().top + window.scrollY + offset : 0, behavior: reduced ? 'auto' : 'smooth' });
     });
   });
 
-  /* ---------- Header + barra contatti ---------- */
-  const header = document.getElementById('header');
-  const quickbar = document.getElementById('quickbar');
-  let lastY = window.scrollY;
-  let ticking = false;
+  /* ---------- Trattamenti: "cosa ti serve oggi?" ---------- */
+  const rows = $$('.tr');
+  const needs = $$('.needs button');
+  needs.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const need = btn.dataset.need;
+      needs.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+      rows.forEach((r) => r.classList.toggle('is-off', need !== 'all' && !r.dataset.needs.split(' ').includes(need)));
+    });
+  });
 
+  /* ---------- Header e "Prenota" mobile ---------- */
+  const hd = $('#hd');
+  const mcta = $('#mcta');
+  const contact = $('#contatti');
+  let contactVisible = false;
+  let lastY = window.scrollY;
+  let heroEnd = window.innerHeight;
   function onScroll() {
     const y = window.scrollY;
-    header.classList.toggle('is-scrolled', y > 40);
-    header.classList.toggle('is-hidden', y > lastY && y > 500 && !body.classList.contains('menu-open'));
-    quickbar.classList.toggle('is-visible', y > window.innerHeight * 0.55);
+    hd.classList.toggle('is-hidden', y > heroEnd && y > lastY && !document.body.classList.contains('menu-open'));
+    mcta.classList.toggle('is-visible', y > heroEnd * 0.9 && !contactVisible);
     lastY = y;
-    ticking = false;
   }
-  window.addEventListener('scroll', () => {
-    if (!ticking) { requestAnimationFrame(onScroll); ticking = true; }
-  }, { passive: true });
-  onScroll();
-
-  /* ---------- Voce di menu attiva ---------- */
-  const navLinks = [...document.querySelectorAll('.nav a')];
-  const navObserver = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) return;
-      navLinks.forEach((l) => l.classList.toggle('is-current', l.getAttribute('href') === '#' + entry.target.id));
-    });
-  }, { rootMargin: '-45% 0px -50% 0px' });
-  navLinks.forEach((l) => {
-    const section = document.querySelector(l.getAttribute('href'));
-    if (section) navObserver.observe(section);
-  });
-
-  /* ---------- Trattamenti: immagine che segue la voce attiva ---------- */
-  const items = [...document.querySelectorAll('.treat__item')];
-  const frames = [...document.querySelectorAll('.treat__frame img')];
-  const treatNum = document.getElementById('treatNum');
-  let current = 0;
-
-  function setActive(i) {
-    if (i === current || !items[i]) return;
-    items[current].classList.remove('is-active');
-    frames[current].classList.remove('is-active');
-    current = i;
-    items[i].classList.add('is-active');
-    frames[i].classList.add('is-active');
-    treatNum.textContent = String(i + 1).padStart(2, '0');
-  }
-  const treatObserver = new IntersectionObserver((entries) => {
-    if (!desktop.matches) return;
-    entries.forEach((entry) => { if (entry.isIntersecting) setActive(Number(entry.target.dataset.index)); });
-  }, { rootMargin: '-42% 0px -42% 0px' });
-  items.forEach((item) => {
-    treatObserver.observe(item);
-    item.addEventListener('mouseenter', () => { if (desktop.matches) setActive(Number(item.dataset.index)); });
-  });
-
-  /* ---------- FAQ con apertura morbida ---------- */
-  document.querySelectorAll('.faq__item').forEach((d) => {
-    const summary = d.querySelector('summary');
-    const answer = d.querySelector('.faq__answer');
-    summary.addEventListener('click', (e) => {
-      if (!animate) return;
-      e.preventDefault();
-      if (d.open) {
-        gsap.to(answer, { height: 0, duration: 0.5, ease: 'expo.out', onComplete: () => { d.open = false; answer.style.height = ''; ScrollTrigger.refresh(); } });
-      } else {
-        d.open = true;
-        gsap.fromTo(answer, { height: 0 }, { height: answer.scrollHeight, duration: 0.7, ease: 'expo.out', onComplete: () => { answer.style.height = ''; ScrollTrigger.refresh(); } });
-      }
-    });
-  });
+  new IntersectionObserver(([entry]) => { contactVisible = entry.isIntersecting; onScroll(); }, { rootMargin: '0px 0px -20% 0px' }).observe(contact);
+  window.addEventListener('scroll', onScroll, { passive: true });
 
   if (!animate) return;
 
   /* =======================================================================
-     Animazioni
+     APERTURA: il cerchio che respira
      ======================================================================= */
+  const stage = $('.hero__stage');
+  const media = $('.hero__media');
+  const heroImg = $('img', media);
+  const ring = $('.hero__ring');
+  const state = { intro: 0, p: 0 };
+  const CYCLE = 10;   // 4 s inspira, 6 s espira
+  const INHALE = 4;
+  let phase = 'in';
+  stage.dataset.phase = phase;
 
-  // Divide un titolo in parole, mantenendo i tag interni (es. <em>)
-  function splitWords(el, wrap = true) {
-    const out = [];
-    const walk = (node) => {
-      [...node.childNodes].forEach((child) => {
-        if (child.nodeType === 3) {
-          const frag = document.createDocumentFragment();
-          child.textContent.split(/(\s+)/).forEach((part) => {
-            if (!part) return;
-            if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(' ')); return; }
-            const inner = document.createElement('span');
-            inner.textContent = part;
-            if (wrap) {
-              const w = document.createElement('span');
-              w.className = 'w';
-              w.appendChild(inner);
-              frag.appendChild(w);
-            } else {
-              inner.className = 'mw';
-              frag.appendChild(inner);
-            }
-            out.push(inner);
-          });
-          node.replaceChild(frag, child);
-        } else if (child.nodeType === 1) {
-          walk(child);
-        }
-      });
-    };
-    walk(el);
-    return out;
+  // lettere del nome
+  const word = $('.hero__word .fit');
+  const letters = [...word.textContent.trim()];
+  word.textContent = '';
+  letters.forEach((c) => {
+    const s = document.createElement('span');
+    s.className = 'ch';
+    s.textContent = c;
+    word.appendChild(s);
+  });
+  word.classList.add('is-split');
+
+  const heroY = () => parseFloat(getComputedStyle(root).getPropertyValue('--hero-y')) || 42;
+  const baseR = () => {
+    const w = window.innerWidth, h = window.innerHeight;
+    return isDesktop() ? Math.min(h * 0.25, w * 0.17) : Math.min(h * 0.21, w * 0.41);
+  };
+  let hy = heroY();
+  let br = baseR();
+  const onResize = () => { hy = heroY(); br = baseR(); stage.style.setProperty('--below', br + 30 + 'px'); };
+  onResize();
+  window.addEventListener('resize', onResize);
+
+  let heroST;
+  function renderHero() {
+    if (heroST && window.scrollY > heroST.end + window.innerHeight) return; // fuori schermo: niente lavoro
+    const w = window.innerWidth, h = window.innerHeight;
+    const t = (performance.now() / 1000) % CYCLE;
+    let b;
+    if (t < INHALE) { b = easeInOutSine(t / INHALE); if (phase !== 'in') { phase = 'in'; stage.dataset.phase = 'in'; } }
+    else { b = 1 - easeInOutSine((t - INHALE) / (CYCLE - INHALE)); if (phase !== 'out') { phase = 'out'; stage.dataset.phase = 'out'; } }
+
+    const p = state.p;
+    const yPct = lerp(hy, 50, p);
+    const cy = (h * yPct) / 100;
+    const maxR = Math.hypot(w / 2, Math.max(cy, h - cy)) + 4;
+    const r0 = br * (0.9 + 0.1 * b) * state.intro;
+    const r = lerp(r0, maxR, p);
+    media.style.clipPath = `circle(${r.toFixed(1)}px at 50% ${yPct.toFixed(2)}%)`;
+    // Nel cerchio la foto è rimpicciolita (si vede tutta la scena); torna a scala 1 appena il cerchio
+    // tocca il bordo più vicino dello schermo, così non restano mai vuoti ai lati.
+    const near = Math.min((h * hy) / 100, h - (h * hy) / 100, w / 2) * 0.92;
+    const k = clamp((r - r0) / Math.max(1, near - r0));
+    // il riquadro rimpicciolito deve restare più largo e più alto del cerchio
+    const sMin = Math.max(isDesktop() ? 0.64 : 0.7, (2 * br + 12) / w, (2 * br + 12) / h);
+    const scale = lerp(sMin, 1, k) + 0.025 * b * (1 - k);
+    // su schermi verticali la foto non si può ritagliare in altezza: la alziamo finché è nel cerchio, così si vedono le mani
+    const shift = w / h < 1 ? -0.1 * h * (1 - k) : 0;
+    heroImg.style.transform = `translate3d(0, ${shift.toFixed(1)}px, 0) scale(${scale.toFixed(4)})`;
+    ring.style.setProperty('--ring', ((r0 + 18 + 6 * b) * 2).toFixed(1) + 'px');
+    ring.style.opacity = (clamp(1 - p * 5) * state.intro).toFixed(3);
   }
+  gsap.ticker.add(renderHero);
 
-  /* ---------- Hero ---------- */
-  const heroTl = gsap.timeline({ defaults: { ease: 'expo.out' }, delay: 0.1 });
+  // ingresso
+  gsap.to(state, { intro: 1, duration: 2.6, ease: 'expo.out', delay: 0.2 });
+  gsap.to('.hero__word .ch', { opacity: 1, filter: 'blur(0px)', duration: 1.8, ease: 'power2.out', stagger: { each: 0.05, from: 'center' }, delay: 0.5 });
+  gsap.to(['.hero__meta', '.hero__breath'], { opacity: 1, duration: 1.6, ease: 'power2.out', stagger: 0.15, delay: 1.3 });
+
+  // scorrendo: il cerchio si allarga fino a riempire lo schermo, poi arriva il motto
+  gsap.set('.hero__motto p span', { y: 26, filter: 'blur(12px)' });
+  const heroTl = gsap.timeline({
+    scrollTrigger: {
+      trigger: '.hero', start: 'top top', end: () => '+=' + window.innerHeight * 1.8,
+      pin: true, scrub: 0.9, invalidateOnRefresh: true,
+      onRefresh: (self) => { heroEnd = self.end; },
+    },
+  });
+  heroST = heroTl.scrollTrigger;
+  heroEnd = heroST.end;
   heroTl
-    .to('.hero__arch', { clipPath: 'inset(0% 0% 0% 0% round 999px 999px 26px 26px)', duration: 1.7, ease: 'expo.inOut' }, 0)
-    .from('.hero__arch img', { scale: 1.35, duration: 2.4 }, 0.25)
-    .to('.hero__title .line > span', { y: 0, duration: 1.4, stagger: 0.09 }, 0.35)
-    .to('[data-hero]', { opacity: 1, y: 0, duration: 1.2, stagger: 0.1 }, 0.75)
-    .to(['.hero__round', '.hero__seal'], { opacity: 1, scale: 1, duration: 1.3, stagger: 0.15, ease: 'back.out(1.5)' }, 1.15);
+    .to(state, { p: 1, duration: 1, ease: 'power2.inOut' }, 0)
+    .to('.hero__ui', { opacity: 0, duration: 0.25, ease: 'none' }, 0)
+    .to('.hero__word', { yPercent: -14, duration: 1, ease: 'none' }, 0)
+    .to('.hero__shade', { opacity: 1, duration: 0.5, ease: 'none' }, 0.6)
+    .to('.hero__motto p span', { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.5, stagger: 0.16, ease: 'power2.out' }, 0.85)
+    .to('.hero__motto footer', { opacity: 1, duration: 0.3 }, 1.5)
+    .to({}, { duration: 0.35 });
 
-  // leggero parallax della foto principale mentre si scorre
-  gsap.to('.hero__arch img', {
-    yPercent: 8, ease: 'none',
-    scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true },
-  });
-  gsap.to('.hero__round', {
-    yPercent: -40, ease: 'none',
-    scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true },
-  });
-
-  /* ---------- Titoli parola per parola ---------- */
-  document.querySelectorAll('[data-split]').forEach((el) => {
-    const words = splitWords(el);
-    el.classList.add('is-split');
-    gsap.to(words, {
-      y: 0, duration: 1.2, ease: 'expo.out', stagger: 0.06,
-      scrollTrigger: { trigger: el, start: 'top 86%', once: true },
-    });
-  });
-
-  /* ---------- Comparsa elementi ---------- */
-  ScrollTrigger.batch('[data-reveal]', {
-    start: 'top 88%',
+  /* =======================================================================
+     Comparse "a respiro": dal fuoco al nitido
+     ======================================================================= */
+  ScrollTrigger.batch('[data-blur]', {
+    start: 'top 86%',
     once: true,
-    onEnter: (batch) => gsap.to(batch, { opacity: 1, y: 0, duration: 1.1, ease: 'expo.out', stagger: 0.09 }),
+    onEnter: (batch) => gsap.to(batch, { opacity: 1, filter: 'blur(0px)', duration: 1.7, ease: 'power2.out', stagger: 0.12 }),
   });
 
-  /* ---------- Foto che si svelano ---------- */
-  document.querySelectorAll('[data-img-reveal]').forEach((fig) => {
-    const st = { trigger: fig, start: 'top 82%', once: true };
-    gsap.to(fig, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1.5, ease: 'expo.inOut', scrollTrigger: st });
-    const img = fig.querySelector('img');
-    if (img) gsap.from(img, { scale: 1.25, duration: 2.2, ease: 'expo.out', scrollTrigger: st });
-  });
-
-  /* ---------- Parallax ---------- */
-  document.querySelectorAll('[data-parallax]').forEach((el) => {
-    const amount = parseFloat(el.dataset.parallax) || 10;
-    gsap.fromTo(el, { yPercent: -amount }, {
-      yPercent: amount, ease: 'none',
-      scrollTrigger: { trigger: el.parentElement, start: 'top bottom', end: 'bottom top', scrub: true },
-    });
-  });
-  document.querySelectorAll('[data-bg-parallax]').forEach((el) => {
-    gsap.fromTo(el, { yPercent: -7 }, {
-      yPercent: 7, ease: 'none',
-      scrollTrigger: { trigger: el.parentElement, start: 'top bottom', end: 'bottom top', scrub: true },
+  // le foto dentro la frase si aprono e spostano le parole
+  $$('.statement').forEach((st) => {
+    $$('.inl', st).forEach((inl, i) => {
+      const w = parseFloat(inl.style.getPropertyValue('--w')) || 1;
+      const trig = { trigger: st, start: 'top 72%', once: true };
+      gsap.to(inl, { width: w + 'em', duration: 1.8, ease: 'expo.inOut', delay: 0.5 + i * 0.22, scrollTrigger: trig });
+      gsap.from($('img', inl), { scale: 1.5, duration: 2.4, ease: 'expo.out', delay: 0.7 + i * 0.22, scrollTrigger: trig });
     });
   });
 
-  /* ---------- Motto: le parole si accendono scorrendo ---------- */
-  const motto = document.querySelector('[data-words]');
-  if (motto) {
-    const words = splitWords(motto, false);
-    gsap.to(words, {
-      opacity: 1, ease: 'none', stagger: 0.12,
-      scrollTrigger: { trigger: '.motto', start: 'top 60%', end: 'center 40%', scrub: 0.6 },
-    });
-    gsap.from('.motto__quote-mark', {
-      y: 60, opacity: 0, duration: 1.4, ease: 'expo.out',
-      scrollTrigger: { trigger: '.motto', start: 'top 65%', once: true },
-    });
-  }
+  /* =======================================================================
+     Trattamenti: immagine circolare che segue il cursore
+     ======================================================================= */
+  const float = $('#float');
+  const floatImgs = $$('img', float);
+  if (finePointer) {
+    // carica le immagini solo quando la lista si avvicina
+    const tlist = $('#tlist');
+    new IntersectionObserver(([entry], obs) => {
+      if (!entry.isIntersecting) return;
+      floatImgs.forEach((img) => { img.src = img.dataset.src; });
+      obs.disconnect();
+    }, { rootMargin: '800px 0px' }).observe(tlist);
 
-  /* ---------- Striscia di foto orizzontale ---------- */
-  const strip = document.querySelector('[data-strip]');
-  if (strip) {
-    gsap.to(strip, {
-      x: () => -Math.max(0, strip.scrollWidth - window.innerWidth + 40),
-      ease: 'none',
-      scrollTrigger: { trigger: '.strip', start: 'top bottom', end: 'bottom top', scrub: 0.5, invalidateOnRefresh: true },
+    let fx = 0, fy = 0, tx = 0, ty = 0, fs = 0, ts = 0, started = false, current = -1;
+    const show = (i) => {
+      if (i === current) return;
+      if (floatImgs[current]) floatImgs[current].classList.remove('is-active');
+      current = i;
+      floatImgs[i].classList.add('is-active');
+    };
+    tlist.addEventListener('mousemove', (e) => {
+      tx = e.clientX; ty = e.clientY;
+      if (!started) { fx = tx; fy = ty; started = true; }
     });
-  }
-
-  /* ---------- Contatori ---------- */
-  document.querySelectorAll('[data-count]').forEach((el) => {
-    const target = parseInt(el.dataset.count, 10);
-    const from = target > 1000 ? target - 30 : 0;
-    const obj = { v: from };
-    el.textContent = from;
-    gsap.to(obj, {
-      v: target, duration: 2, ease: 'power3.out',
-      onUpdate: () => { el.textContent = Math.round(obj.v); },
-      scrollTrigger: { trigger: el, start: 'top 90%', once: true },
-    });
-  });
-
-  /* ---------- Bottoni magnetici (solo mouse) ---------- */
-  if (finePointer.matches) {
-    document.querySelectorAll('[data-magnetic]').forEach((btn) => {
-      btn.addEventListener('mousemove', (e) => {
-        const r = btn.getBoundingClientRect();
-        gsap.to(btn, { x: (e.clientX - r.left - r.width / 2) * 0.22, y: (e.clientY - r.top - r.height / 2) * 0.35, duration: 0.5, ease: 'power3.out' });
+    rows.forEach((row) => {
+      row.addEventListener('mouseenter', () => {
+        if (row.classList.contains('is-off')) { ts = 0; return; }
+        ts = 1;
+        show(Number(row.dataset.i));
       });
-      btn.addEventListener('mouseleave', () => gsap.to(btn, { x: 0, y: 0, duration: 0.9, ease: 'elastic.out(1, 0.4)' }));
+    });
+    tlist.addEventListener('mouseleave', () => { ts = 0; });
+    gsap.ticker.add(() => {
+      fx += (tx - fx) * 0.12;
+      fy += (ty - fy) * 0.12;
+      fs += (ts - fs) * 0.1;
+      if (fs < 0.001 && ts === 0) { float.style.transform = 'translate3d(-50%, -50%, 0) scale(0)'; return; }
+      float.style.transform = `translate3d(${fx.toFixed(1)}px, ${fy.toFixed(1)}px, 0) translate(-50%, -50%) scale(${fs.toFixed(3)})`;
+    });
+
+    /* ---------- Cursore ---------- */
+    const cursor = $('#cursor');
+    root.classList.add('has-cursor');
+    let cx = -100, cy2 = -100, mx = -100, my = -100;
+    window.addEventListener('mousemove', (e) => { mx = e.clientX; my = e.clientY; }, { passive: true });
+    document.addEventListener('mouseover', (e) => {
+      const t = e.target;
+      cursor.classList.toggle('is-wa', !!t.closest('[data-cursor="whatsapp"]'));
+      cursor.classList.toggle('is-hidden', !!t.closest('.tr') && !t.closest('.tr.is-off'));
+      cursor.classList.toggle('is-link', !t.closest('[data-cursor]') && !!t.closest('a, button, summary'));
+    });
+    document.addEventListener('mouseleave', () => { mx = my = -100; });
+    gsap.ticker.add(() => {
+      cx += (mx - cx) * 0.25;
+      cy2 += (my - cy2) * 0.25;
+      cursor.style.transform = `translate3d(${cx.toFixed(1)}px, ${cy2.toFixed(1)}px, 0) translate(-50%, -50%)`;
     });
   }
 
-  // ricalcola le posizioni quando font e immagini sono pronti
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => ScrollTrigger.refresh());
+  /* =======================================================================
+     Sessanta minuti: l'anello si disegna scorrendo
+     ======================================================================= */
+  const minutes = $('#minutes');
+  const prog = $('.time__prog');
+  const dot = $('.time__dot');
+  const phases = $$('.ph');
+  const marks = [0.14, 0.52, 0.86];
+  const clock = { v: 0 };
+  function drawClock() {
+    const v = clamp(clock.v / 0.9);
+    prog.style.strokeDashoffset = (1 - v).toFixed(4);
+    dot.style.transform = `rotate(${(v * 360).toFixed(2)}deg)`;
+    minutes.textContent = String(Math.round(v * 60)).padStart(2, '0');
+    let last = -1;
+    phases.forEach((ph, i) => {
+      const on = v >= marks[i];
+      ph.classList.toggle('is-on', on);
+      if (on) last = i;
+    });
+    phases.forEach((ph, i) => ph.classList.toggle('is-current', i === last));
+  }
+  drawClock();
+  gsap.to(clock, {
+    v: 1, ease: 'none', onUpdate: drawClock,
+    scrollTrigger: { trigger: '.time', start: 'top top', end: () => '+=' + window.innerHeight * 1.5, pin: true, scrub: 0.6, invalidateOnRefresh: true },
+  });
+
+  /* =======================================================================
+     Lo studio: la foto si apre come una fessura
+     ======================================================================= */
+  const placeTrig = { trigger: '.place__img', start: 'top 92%', end: 'top 20%', scrub: 0.6 };
+  gsap.to('.place__img', { clipPath: 'inset(0% 0% 0% 0%)', ease: 'none', scrollTrigger: placeTrig });
+  gsap.fromTo('.place__img img', { scale: 1.3 }, { scale: 1, ease: 'none', scrollTrigger: placeTrig });
+
+  /* ---------- Buoni regalo: parallax lento ---------- */
+  gsap.fromTo('.gift__img img', { yPercent: -15 }, {
+    yPercent: 0, ease: 'none',
+    scrollTrigger: { trigger: '.gift__img', start: 'top bottom', end: 'bottom top', scrub: true },
+  });
+
   window.addEventListener('load', () => ScrollTrigger.refresh());
 })();
