@@ -451,7 +451,7 @@ em { font-style: italic; }
   .hero__media { order: -1; justify-self: stretch; max-width: none; padding-left: 9%; }
   .hero__arch { aspect-ratio: auto; height: min(56svh, 520px); max-height: none; border-radius: 999px 999px 22px 22px; }
   .js:not(.no-anim) .hero__arch { clip-path: inset(100% 0 0 0 round 999px 999px 22px 22px); }
-  .hero__round { left: 0; bottom: 6%; width: 32%; border-width: 5px; }
+  .hero__round { left: 0; bottom: 6%; width: 32%; max-width: 190px; border-width: 5px; }
   .hero__seal { left: -2%; top: 4%; width: 96px; }
   .hero__seal span { font-size: 1.4rem; }
   .hero__title { font-size: clamp(3rem, 13vw, 4.6rem); margin-bottom: 1.5rem; }
