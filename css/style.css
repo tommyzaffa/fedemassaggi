@@ -186,8 +186,8 @@ section { position: relative; padding: clamp(6rem, 18vh, 13rem) var(--pad); }
 
 @media (hover: hover) and (pointer: fine) {
   .tr { will-change: opacity; } /* l'opacità cambia sulla GPU, senza ridisegnare il testo grande */
-  .tlist:hover .tr:not(.is-off) { opacity: 0.35; }
-  .tlist .tr:not(.is-off):hover { opacity: 1; }
+  /* le altre righe si attenuano solo se il cursore è su una riga attiva: su una riga esclusa dal filtro non cambia nulla */
+  .tlist:has(.tr:not(.is-off):hover) .tr:not(.is-off):not(:hover) { opacity: 0.35; }
   .tr:not(.is-off):hover .tr__name { transform: translateX(1.4vw); }
 }
 
