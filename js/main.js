@@ -103,7 +103,7 @@
   function onScroll() {
     const y = window.scrollY;
     hd.classList.toggle('is-hidden', y > heroEnd && y > lastY && !document.body.classList.contains('menu-open'));
-    mcta.classList.toggle('is-visible', y > heroEnd * 0.9 && !contactVisible);
+    mcta.classList.toggle('is-visible', y > heroEnd + window.innerHeight * 0.6 && !contactVisible);
     lastY = y;
   }
   new IntersectionObserver(([entry]) => { contactVisible = entry.isIntersecting; onScroll(); }, { rootMargin: '0px 0px -20% 0px' }).observe(contact);
@@ -141,15 +141,16 @@
     const w = window.innerWidth, h = window.innerHeight;
     return isDesktop() ? Math.min(h * 0.25, w * 0.17) : Math.min(h * 0.21, w * 0.41);
   };
+  const hero = $('.hero');
   let hy = heroY();
   let br = baseR();
-  const onResize = () => { hy = heroY(); br = baseR(); stage.style.setProperty('--below', br + 30 + 'px'); };
+  let heroCover = hero.offsetHeight;
+  const onResize = () => { hy = heroY(); br = baseR(); heroCover = hero.offsetHeight; stage.style.setProperty('--below', br + 30 + 'px'); };
   onResize();
   window.addEventListener('resize', onResize);
 
-  let heroST;
   function renderHero() {
-    if (heroST && window.scrollY > heroST.end + window.innerHeight) return; // fuori schermo: niente lavoro
+    if (window.scrollY > heroCover) return; // coperta da "Chi sono": niente lavoro
     const w = window.innerWidth, h = window.innerHeight;
     const t = (performance.now() / 1000) % CYCLE;
     let b;
@@ -180,20 +181,20 @@
 
   // ingresso
   gsap.to(state, { intro: 1, duration: 2.6, ease: 'expo.out', delay: 0.2 });
-  gsap.to('.hero__word .ch', { opacity: 1, filter: 'blur(0px)', duration: 1.8, ease: 'power2.out', stagger: { each: 0.05, from: 'center' }, delay: 0.5 });
+  gsap.to('.hero__word .ch', { opacity: 1, filter: 'blur(0px)', duration: 1.8, ease: 'power2.out', stagger: { each: 0.05, from: 'center' }, delay: 0.5, onComplete: () => gsap.set('.hero__word .ch', { filter: 'none' }) });
   gsap.to(['.hero__meta', '.hero__breath'], { opacity: 1, duration: 1.6, ease: 'power2.out', stagger: 0.15, delay: 1.3 });
 
   // scorrendo: il cerchio si allarga fino a riempire lo schermo, poi arriva il motto
+  // (la prima schermata è sticky in CSS, qui solo animazioni legate allo scroll: nessun pin)
   gsap.set('.hero__motto p span', { y: 26, filter: 'blur(12px)' });
   const heroTl = gsap.timeline({
     scrollTrigger: {
-      trigger: '.hero', start: 'top top', end: () => '+=' + window.innerHeight * 1.8,
-      pin: true, scrub: 0.9, invalidateOnRefresh: true,
+      trigger: hero, start: 'top top', end: () => '+=' + window.innerHeight * 2,
+      scrub: 1.2, invalidateOnRefresh: true,
       onRefresh: (self) => { heroEnd = self.end; },
     },
   });
-  heroST = heroTl.scrollTrigger;
-  heroEnd = heroST.end;
+  heroEnd = heroTl.scrollTrigger.end;
   heroTl
     .to(state, { p: 1, duration: 1, ease: 'power2.inOut' }, 0)
     .to('.hero__ui', { opacity: 0, duration: 0.25, ease: 'none' }, 0)
@@ -203,22 +204,31 @@
     .to('.hero__motto footer', { opacity: 1, duration: 0.3 }, 1.5)
     .to({}, { duration: 0.35 });
 
+  // uscita a sipario: "Chi sono" sale sopra la foto, che intanto scorre più lenta e il motto si dissolve
+  gsap.timeline({
+    scrollTrigger: { trigger: '.about', start: 'top bottom', end: 'top top', scrub: 1.2 },
+  })
+    .to('.hero__media', { yPercent: -18, ease: 'none' }, 0)
+    .to('.hero__motto', { yPercent: -45, opacity: 0, ease: 'power1.in' }, 0);
+
   /* =======================================================================
      Comparse "a respiro": dal fuoco al nitido
      ======================================================================= */
   ScrollTrigger.batch('[data-blur]', {
     start: 'top 86%',
     once: true,
-    onEnter: (batch) => gsap.to(batch, { opacity: 1, filter: 'blur(0px)', duration: 1.7, ease: 'power2.out', stagger: 0.12 }),
+    // a fine comparsa il filtro viene tolto del tutto: un blur(0) lasciato attivo pesa sul rendering
+    onEnter: (batch) => gsap.to(batch, { opacity: 1, filter: 'blur(0px)', duration: 1.7, ease: 'power2.out', stagger: 0.12, onComplete: () => gsap.set(batch, { filter: 'none' }) }),
   });
 
-  // le foto dentro la frase si aprono e spostano le parole
+  // le foto dentro la frase si aprono da un puntino: lo spazio è già riservato, le parole restano ferme
   $$('.statement').forEach((st) => {
     $$('.inl', st).forEach((inl, i) => {
-      const w = parseFloat(inl.style.getPropertyValue('--w')) || 1;
       const trig = { trigger: st, start: 'top 72%', once: true };
-      gsap.to(inl, { width: w + 'em', duration: 1.8, ease: 'expo.inOut', delay: 0.5 + i * 0.22, scrollTrigger: trig });
-      gsap.from($('img', inl), { scale: 1.5, duration: 2.4, ease: 'expo.out', delay: 0.7 + i * 0.22, scrollTrigger: trig });
+      gsap.fromTo(inl,
+        { clipPath: 'inset(38% 46% 38% 46% round 999px)' },
+        { clipPath: 'inset(0% 0% 0% 0% round 999px)', duration: 1.6, ease: 'expo.inOut', delay: 0.6 + i * 0.25, scrollTrigger: trig, immediateRender: false });
+      gsap.from($('img', inl), { scale: 1.6, duration: 2.4, ease: 'expo.out', delay: 0.8 + i * 0.25, scrollTrigger: trig });
     });
   });
 
@@ -255,11 +265,16 @@
       });
     });
     tlist.addEventListener('mouseleave', () => { ts = 0; });
+    let floatIdle = false;
     gsap.ticker.add(() => {
       fx += (tx - fx) * 0.12;
       fy += (ty - fy) * 0.12;
       fs += (ts - fs) * 0.1;
-      if (fs < 0.001 && ts === 0) { float.style.transform = 'translate3d(-50%, -50%, 0) scale(0)'; return; }
+      if (fs < 0.001 && ts === 0) {
+        if (!floatIdle) { float.style.transform = 'translate3d(-50%, -50%, 0) scale(0)'; floatIdle = true; }
+        return;
+      }
+      floatIdle = false;
       float.style.transform = `translate3d(${fx.toFixed(1)}px, ${fy.toFixed(1)}px, 0) translate(-50%, -50%) scale(${fs.toFixed(3)})`;
     });
 
@@ -276,8 +291,10 @@
     });
     document.addEventListener('mouseleave', () => { mx = my = -100; });
     gsap.ticker.add(() => {
-      cx += (mx - cx) * 0.25;
-      cy2 += (my - cy2) * 0.25;
+      const dx = mx - cx, dy = my - cy2;
+      if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) return; // fermo: nessun ridisegno
+      cx += dx * 0.25;
+      cy2 += dy * 0.25;
       cursor.style.transform = `translate3d(${cx.toFixed(1)}px, ${cy2.toFixed(1)}px, 0) translate(-50%, -50%)`;
     });
   }
@@ -305,9 +322,10 @@
     phases.forEach((ph, i) => ph.classList.toggle('is-current', i === last));
   }
   drawClock();
+  // la scena è sticky in CSS: entrata e uscita sono scroll nativo, senza scatti
   gsap.to(clock, {
     v: 1, ease: 'none', onUpdate: drawClock,
-    scrollTrigger: { trigger: '.time', start: 'top top', end: () => '+=' + window.innerHeight * 1.5, pin: true, scrub: 0.6, invalidateOnRefresh: true },
+    scrollTrigger: { trigger: '.time', start: 'top top', end: 'bottom bottom', scrub: 0.8 },
   });
 
   /* =======================================================================

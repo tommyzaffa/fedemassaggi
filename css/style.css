@@ -25,7 +25,9 @@
 
 /* ---------- Base ---------- */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+html { -webkit-text-size-adjust: 100%; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; scrollbar-width: none; -ms-overflow-style: none; }
+/* scrollbar nascosta, lo scroll resta attivo */
+html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; display: none; }
 html:not(.lenis) { scroll-behavior: smooth; }
 html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
@@ -35,6 +37,7 @@ body {
   background: var(--bg); color: var(--ink);
   font-family: var(--sans); font-size: clamp(0.94rem, 0.9rem + 0.12vw, 1.02rem); line-height: 1.6;
   overflow-x: hidden;
+  overflow-x: clip; /* non crea un contenitore di scroll: position: sticky funziona */
 }
 img { display: block; max-width: 100%; height: auto; }
 a { color: inherit; text-decoration: none; }
@@ -95,6 +98,14 @@ section { position: relative; padding: clamp(6rem, 18vh, 13rem) var(--pad); }
 /* ---------- Apertura: il respiro ---------- */
 .hero { padding: 0; height: 100vh; height: 100svh; }
 .hero__stage { position: relative; height: 100%; overflow: hidden; }
+/* Con le animazioni la prima schermata resta ferma (sticky, gestito dal browser: niente scatti)
+   per 300vh: 200vh per aprire il cerchio e leggere il motto, 100vh in cui "Chi sono" le scorre sopra. */
+.js:not(.no-anim) .hero { height: 400vh; }
+.js:not(.no-anim) .hero__stage { position: sticky; top: 0; height: 100vh; height: 100lvh; }
+.js:not(.no-anim) .about { margin-top: -100vh; z-index: 5; background: var(--bg); }
+:root { --bar: 0px; }
+@supports (height: 100lvh) { :root { --bar: calc(100lvh - 100svh); } }
+.js:not(.no-anim) .hero__word { bottom: calc(1.2vh + var(--bar)); }
 
 .hero__word {
   position: absolute; left: 0; right: 0; bottom: 1.2vh; z-index: 1;
@@ -133,8 +144,10 @@ section { position: relative; padding: clamp(6rem, 18vh, 13rem) var(--pad); }
 .hero__motto footer::before { content: ""; display: inline-block; width: 0.45em; height: 0.45em; border-radius: 50%; background: #fff; margin-right: 0.65em; vertical-align: 0.08em; }
 
 /* ---------- Chi sono ---------- */
-.statement { font-family: var(--display); font-weight: 400; font-size: clamp(2.3rem, 5.6vw, 6.4rem); line-height: 1.1; letter-spacing: -0.01em; max-width: 16em; }
-.inl { display: inline-block; width: calc(var(--w) * 1em); height: 0.8em; vertical-align: -0.07em; border-radius: 999px; overflow: hidden; background: #e7e1d7; }
+.statement { font-family: var(--display); font-weight: 400; font-size: clamp(2.3rem, 5.6vw, 6.4rem); line-height: 1.1; letter-spacing: -0.01em; max-width: 16em; text-wrap: pretty; }
+/* la parola e la sua foto non si separano mai; la foto ha già la sua larghezza finale, quindi nulla va a capo quando appare */
+.nw { white-space: nowrap; }
+.inl { display: inline-block; width: calc(var(--w) * 1em); height: 0.8em; vertical-align: -0.07em; border-radius: 999px; overflow: hidden; background: var(--clay); }
 .inl img { width: 100%; height: 100%; object-fit: cover; }
 
 .about__cols { display: grid; grid-template-columns: repeat(12, 1fr); gap: var(--gap); margin-top: clamp(4rem, 12vh, 9rem); }
@@ -160,7 +173,7 @@ section { position: relative; padding: clamp(6rem, 18vh, 13rem) var(--pad); }
 .tr {
   display: grid; grid-template-columns: repeat(12, 1fr); gap: var(--gap); align-items: baseline;
   padding: clamp(1.1rem, 2.1vw, 1.9rem) 0; border-bottom: 1px solid var(--line);
-  transition: opacity 0.7s var(--ease);
+  transition: opacity 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .tr__name { grid-column: 1 / span 7; font-family: var(--display); font-weight: 400; font-size: clamp(2rem, 4.3vw, 4.8rem); line-height: 1.02; transition: transform 0.9s var(--ease); }
 .tr__desc { grid-column: 8 / span 4; font-size: 0.86rem; color: var(--gray); max-width: 40ch; }
@@ -172,6 +185,7 @@ section { position: relative; padding: clamp(6rem, 18vh, 13rem) var(--pad); }
 .treat__foot .ln { color: var(--ink); }
 
 @media (hover: hover) and (pointer: fine) {
+  .tr { will-change: opacity; } /* l'opacità cambia sulla GPU, senza ridisegnare il testo grande */
   .tlist:hover .tr:not(.is-off) { opacity: 0.35; }
   .tlist .tr:not(.is-off):hover { opacity: 1; }
   .tr:not(.is-off):hover .tr__name { transform: translateX(1.4vw); }
@@ -183,18 +197,20 @@ section { position: relative; padding: clamp(6rem, 18vh, 13rem) var(--pad); }
 .float img.is-active { opacity: 1; transform: scale(1); }
 
 /* cursore (solo mouse) */
-.cursor { position: fixed; left: 0; top: 0; z-index: 60; width: 10px; height: 10px; border-radius: 50%; background: #fff; mix-blend-mode: difference; pointer-events: none; display: none; place-items: center; transform: translate3d(-50%, -50%, 0); transition: width 0.5s var(--ease), height 0.5s var(--ease), background-color 0.5s var(--ease); }
+.cursor { position: fixed; left: 0; top: 0; z-index: 60; width: 10px; height: 10px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 1px rgba(246, 244, 239, 0.55); pointer-events: none; display: none; place-items: center; transform: translate3d(-50%, -50%, 0); will-change: transform; transition: width 0.5s var(--ease), height 0.5s var(--ease), background-color 0.5s var(--ease); }
 .cursor span { font-size: 0.78rem; color: var(--bg); opacity: 0; white-space: nowrap; transition: opacity 0.3s; }
 .has-cursor .cursor { display: grid; }
 .has-cursor, .has-cursor a, .has-cursor button, .has-cursor summary { cursor: none; }
-.cursor.is-link { width: 46px; height: 46px; }
-.cursor.is-hidden { width: 0; height: 0; }
-.cursor.is-wa { width: 132px; height: 132px; background: var(--ink); mix-blend-mode: normal; }
+.cursor.is-link { width: 46px; height: 46px; background: transparent; box-shadow: inset 0 0 0 1px var(--ink); }
+.cursor.is-hidden { width: 0; height: 0; box-shadow: none; }
+.cursor.is-wa { width: 132px; height: 132px; background: var(--ink); box-shadow: none; }
 .cursor.is-wa span { opacity: 1; }
 
 /* ---------- Sessanta minuti ---------- */
 .time { padding: 0; }
-.time__stage { height: 100vh; height: 100svh; display: grid; place-items: center; }
+.time__stage { min-height: 100vh; min-height: 100svh; display: grid; place-items: center; }
+.js:not(.no-anim) .time { height: 260vh; }
+.js:not(.no-anim) .time__stage { position: sticky; top: 0; height: 100vh; height: 100svh; min-height: 0; }
 .time__clock { position: relative; width: min(64vh, 80vw); aspect-ratio: 1; }
 .time__svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
 .time__track, .time__prog { fill: none; stroke-width: 0.5; }
@@ -269,7 +285,7 @@ section { position: relative; padding: clamp(6rem, 18vh, 13rem) var(--pad); }
 .js:not(.no-anim) .hero__motto p span,
 .js:not(.no-anim) .hero__motto footer { opacity: 0; }
 .js:not(.no-anim) [data-blur] { opacity: 0; filter: blur(14px); }
-.js:not(.no-anim) .inl { width: 0; }
+.js:not(.no-anim) .inl { clip-path: inset(38% 46% 38% 46% round 999px); }
 .js:not(.no-anim) .ph { opacity: 0; filter: blur(8px); transform: translateY(10px); }
 .js:not(.no-anim) .ph.is-on { opacity: 1; filter: none; transform: none; }
 .js:not(.no-anim) .time__prog { stroke-dashoffset: 1; }
